@@ -19,7 +19,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 2,
@@ -28,7 +29,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 1,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 3,
@@ -37,7 +39,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 4,
@@ -55,7 +58,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 6,
@@ -73,7 +77,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 8,
@@ -82,8 +87,7 @@ export const questions: Question[] = [
     scoringPAP: 2,
     scoringWP: -2,
     scoringSDP: -2,
-    scoringPSP: -2,
-    isInverted: true
+    scoringPSP: -2
   },
   {
     id: 9,
@@ -101,7 +105,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 11,
@@ -128,7 +133,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 14,
@@ -137,7 +143,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 15,
@@ -164,7 +171,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 18,
@@ -173,7 +181,8 @@ export const questions: Question[] = [
     scoringPAP: 1,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 19,
@@ -182,7 +191,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 20,
@@ -191,7 +201,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 21,
@@ -209,7 +220,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 23,
@@ -247,7 +259,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 27,
@@ -256,8 +269,7 @@ export const questions: Question[] = [
     scoringPAP: 1,
     scoringWP: -1,
     scoringSDP: -2,
-    scoringPSP: -1,
-    isInverted: true
+    scoringPSP: -1
   },
   {
     id: 28,
@@ -275,7 +287,8 @@ export const questions: Question[] = [
     scoringPAP: 2,
     scoringWP: -2,
     scoringSDP: -2,
-    scoringPSP: -2
+    scoringPSP: -2,
+    isInverted: true
   },
   {
     id: 30,
@@ -284,7 +297,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 31,
@@ -302,7 +316,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 33,
@@ -320,7 +335,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 35,
@@ -329,7 +345,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 36,
@@ -338,7 +355,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 37,
@@ -347,7 +365,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 38,
@@ -374,7 +393,8 @@ export const questions: Question[] = [
     scoringPAP: 1,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 41,
@@ -392,7 +412,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 43,
@@ -410,7 +431,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 2,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 45,
@@ -419,7 +441,8 @@ export const questions: Question[] = [
     scoringPAP: -2,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 2
+    scoringPSP: 2,
+    isInverted: true
   },
   {
     id: 46,
@@ -437,7 +460,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 2,
     scoringSDP: 1,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   },
   {
     id: 48,
@@ -464,7 +488,8 @@ export const questions: Question[] = [
     scoringPAP: -1,
     scoringWP: 1,
     scoringSDP: 2,
-    scoringPSP: 1
+    scoringPSP: 1,
+    isInverted: true
   }
 ];
 
@@ -489,44 +514,52 @@ export const calculateScores = (answers: Record<number, Answer>): {
   socialScore: number;
   scoresByParty: { pap: number; wp: number; sdp: number; psp: number };
 } => {
-  let economicScore = 0;
-  let socialScore = 0;
+  let currentEconomicScore = 0;
+  let currentSocialScore = 0;
   let papScore = 0;
   let wpScore = 0;
   let sdpScore = 0;
   let pspScore = 0;
+  
+  let economicQuestionsAnswered = 0;
+  let socialQuestionsAnswered = 0;
 
-  Object.entries(answers).forEach(([questionIdStr, answer]) => {
+  Object.entries(answers).forEach(([questionIdStr, rawAnswer]) => {
     const questionId = parseInt(questionIdStr, 10);
     const question = questions.find(q => q.id === questionId);
     
     if (!question) return;
     
-    // Apply the answer value to the appropriate score
     const multiplier = question.isInverted ? -1 : 1;
-    const value = answer * multiplier;
+    const axisSpecificUserAnswerValue = rawAnswer * multiplier;
     
-    // Update axis scores
     if (question.category === 'economic') {
-      economicScore += value;
+      currentEconomicScore += axisSpecificUserAnswerValue;
+      economicQuestionsAnswered++;
     } else {
-      socialScore += value;
+      currentSocialScore += axisSpecificUserAnswerValue;
+      socialQuestionsAnswered++;
     }
     
-    // Update party scores
-    papScore += value * (question.scoringPAP > 0 ? 1 : -1);
-    wpScore += value * (question.scoringWP > 0 ? 1 : -1);
-    sdpScore += value * (question.scoringSDP > 0 ? 1 : -1);
-    pspScore += value * (question.scoringPSP > 0 ? 1 : -1);
+    papScore += rawAnswer * question.scoringPAP;
+    wpScore += rawAnswer * question.scoringWP;
+    sdpScore += rawAnswer * question.scoringSDP;
+    pspScore += rawAnswer * question.scoringPSP;
   });
   
-  // Normalize to -10 to 10 scale
-  economicScore = (economicScore / 50) * 10;
-  socialScore = (socialScore / 50) * 10;
+  const maxPossibleEconomicScore = economicQuestionsAnswered * 2;
+  const maxPossibleSocialScore = socialQuestionsAnswered * 2;
+  
+  const finalEconomicScore = maxPossibleEconomicScore > 0 
+    ? (currentEconomicScore / maxPossibleEconomicScore) * 10 
+    : 0;
+  const finalSocialScore = maxPossibleSocialScore > 0 
+    ? (currentSocialScore / maxPossibleSocialScore) * 10 
+    : 0;
   
   return {
-    economicScore,
-    socialScore,
+    economicScore: finalEconomicScore,
+    socialScore: finalSocialScore,
     scoresByParty: {
       pap: papScore,
       wp: wpScore,

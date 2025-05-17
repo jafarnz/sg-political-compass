@@ -10,9 +10,15 @@ interface PoliticalCompassProps {
     sdp: number;
     psp: number;
   };
+  closestPartyId?: string;
 }
 
-const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ economicScore, socialScore, userPartyScores }) => {
+const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ 
+  economicScore, 
+  socialScore, 
+  userPartyScores,
+  closestPartyId 
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const partyImagesLoaded = useRef<Record<string, HTMLImageElement | null>>({});
   
@@ -65,7 +71,7 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ economicScore, soci
     ctx.clearRect(0, 0, width, height);
     
     // Fill background with different colors for each quadrant
-    ctx.globalAlpha = 0.1;
+    ctx.globalAlpha = 0.15; // Make backgrounds more subtle
     // Authoritarian Right (top right)
     ctx.fillStyle = '#FF9999';
     ctx.fillRect(centerX, 0, width/2, height/2);
@@ -144,10 +150,21 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ economicScore, soci
     ctx.fillText('Libertarian Right', width * 0.75, height * 0.75);
     ctx.globalAlpha = 1.0;
     
-    // Plot party positions
+    // Plot party positions - using direct map from data values to canvas coordinates
     parties.forEach((party) => {
+      // Convert from political space (-10,10) to pixel coordinates
+      // NOTE: Y-axis flipped because canvas Y increases downward
       const x = centerX + party.economicPosition * scale;
-      const y = centerY - party.socialPosition * scale; // Invert Y-axis
+      const y = centerY - party.socialPosition * scale; // Negative sign for correct orientation
+      
+      // Highlight closest party with a ring if provided
+      if (closestPartyId && party.id === closestPartyId) {
+        ctx.beginPath();
+        ctx.arc(x, y, 18, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#FFD700'; // Gold color
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
       
       const partyImage = partyImagesLoaded.current[party.id];
       const logoSize = 24; // Size of the logo on the canvas
@@ -171,7 +188,7 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ economicScore, soci
             logoSize
           );
           ctx.restore();
-        } catch (e) {
+        } catch (_) {
           // Fallback to colored circle if image drawing fails
           drawFallbackPartyMarker(ctx, x, y, party);
         }
@@ -187,10 +204,16 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ economicScore, soci
       ctx.fillText(party.shortName, x, y - logoSize/2 - 5);
     });
     
-    // Draw user position
+    // Draw user position - this is where the user's position is plotted
     if (economicScore !== undefined && socialScore !== undefined) {
       const userX = centerX + economicScore * scale;
-      const userY = centerY - socialScore * scale; // Invert Y-axis
+      const userY = centerY - socialScore * scale; // Negative sign for correct orientation
+      
+      // Add a clear white halo around the USER marker
+      ctx.beginPath();
+      ctx.arc(userX, userY, 18, 0, 2 * Math.PI);
+      ctx.fillStyle = 'white';
+      ctx.fill();
       
       // Draw user marker (larger than party markers)
       ctx.fillStyle = '#333';
@@ -202,8 +225,23 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ economicScore, soci
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('YOU', userX, userY + 4);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('YOU', userX, userY);
+      ctx.textBaseline = 'alphabetic'; // Reset to default
+      
+      // Add "YOU" label outside the marker for better visibility
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText('YOU', userX + 30, userY);
     }
+    
+    // Add a watermark
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#666';
+    ctx.font = 'italic 12px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('sg-political-compass.vercel.app', width - 10, height - 10);
+    ctx.globalAlpha = 1.0;
   };
   
   // Fallback function to draw a colored circle if image loading fails
@@ -238,18 +276,20 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ economicScore, soci
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [economicScore, socialScore]);
+  }, [economicScore, socialScore, closestPartyId]);
 
   // Find the quadrant the user is in
   const userQuadrant = getQuadrantDescription(economicScore, socialScore);
 
-  // Find closest party by scores (if available)
+  // Find closest party based on provided ID or fall back to party scores
   let closestParty: Party | undefined;
-  if (userPartyScores) {
+  if (closestPartyId) {
+    closestParty = parties.find(p => p.id === closestPartyId);
+  } else if (userPartyScores) {
     const scores = Object.entries(userPartyScores);
     scores.sort((a, b) => b[1] - a[1]);
-    const closestPartyId = scores[0][0];
-    closestParty = parties.find(p => p.id === closestPartyId);
+    const closestId = scores[0][0];
+    closestParty = parties.find(p => p.id === closestId);
   }
 
   return (
