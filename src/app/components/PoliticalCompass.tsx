@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import Image from 'next/image';
 import { parties, Party, getQuadrantDescription } from '../data/parties';
 
 interface PoliticalCompassProps {

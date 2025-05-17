@@ -1,7 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
 import PoliticalCompass from './PoliticalCompass';
-import { parties, Party, getClosestParty } from '../data/parties';
+import { parties, getClosestParty } from '../data/parties';
 
 interface ResultsProps {
   economicScore: number;

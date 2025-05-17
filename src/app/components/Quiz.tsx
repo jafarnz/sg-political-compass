@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import QuizQuestion from './QuizQuestion';
 import { questions, QuizState, Answer, calculateScores } from '../data/questions';
-import PoliticalCompass from './PoliticalCompass';
-import { useRouter } from 'next/navigation';
 
 interface QuizProps {
   onComplete: (results: {
