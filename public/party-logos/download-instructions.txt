@@ -1,0 +1,17 @@
+Please download the following images and save them in this directory:
+
+1. PAP Logo (People's Action Party)
+   URL: https://upload.wikimedia.org/wikipedia/commons/1/18/PAP_logo_variation.svg
+   Save as: pap-logo.png
+
+2. WP Logo (Workers' Party)
+   URL: https://upload.wikimedia.org/wikipedia/en/3/34/Workers%27_Party_of_Singapore_logo.png
+   Save as: wp-logo.png
+
+3. SDP Logo (Singapore Democratic Party)
+   URL: https://upload.wikimedia.org/wikipedia/en/thumb/0/0d/Logo_of_the_SDP.svg/1200px-Logo_of_the_SDP.svg.png
+   Save as: sdp-logo.png
+
+4. PSP Logo (Progress Singapore Party)
+   URL: https://psp.org.sg/wp-content/uploads/2020/04/psp-logo2-600.png
+   Save as: psp-logo.png 
