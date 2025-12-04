@@ -1,24 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// For Cloudflare Pages environment access
-// @ts-ignore - This is available in Cloudflare Pages runtime
-const getCloudflareEnv = () => {
-  try {
-    // Try Cloudflare's getRequestContext for Pages
-    // @ts-ignore
-    const { env } = process.env.CLOUDFLARE === 'true' || typeof process.env.CF_PAGES !== 'undefined'
-      ? { env: process.env }
-      : { env: process.env };
-    return env;
-  } catch {
-    return process.env;
-  }
-};
+import { getRequestContext } from '@cloudflare/next-on-pages';
 
 // Simple in-memory rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 20; // requests per window
-const RATE_WINDOW = 60 * 1000; // 1 minute window
+const RATE_LIMIT = 20;
+const RATE_WINDOW = 60 * 1000;
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -37,7 +23,6 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// Types
 interface ExplainRequest {
   partyName: string;
   partyId: string;
@@ -47,7 +32,6 @@ interface ExplainRequest {
   category: string;
 }
 
-// Party resources for context
 const PARTY_RESOURCES: Record<string, { website: string; leader: string }> = {
   pap: { website: 'https://www.pap.org.sg', leader: 'Prime Minister Lawrence Wong' },
   wp: { website: 'https://www.wp.sg', leader: 'Pritam Singh' },
@@ -66,6 +50,23 @@ const CATEGORY_CONTEXT: Record<string, string> = {
   immigration: 'immigration policy, foreign talent, new citizens, population growth'
 };
 
+// Get API key from environment (works for both local and Cloudflare)
+function getApiKey(): string | undefined {
+  // Try Cloudflare Pages context first
+  try {
+    const ctx = getRequestContext();
+    const env = ctx?.env as Record<string, string> | undefined;
+    if (env?.GOOGLE_AI_API_KEY) {
+      return env.GOOGLE_AI_API_KEY;
+    }
+  } catch (e) {
+    // Not in Cloudflare context
+  }
+  
+  // Fall back to process.env (for local dev)
+  return process.env.GOOGLE_AI_API_KEY;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
@@ -81,9 +82,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get API key from environment
-    const env = getCloudflareEnv();
-    const apiKey = env.GOOGLE_AI_API_KEY;
+    // Get API key
+    const apiKey = getApiKey();
     
     if (!apiKey) {
       console.error('GOOGLE_AI_API_KEY not found in environment');
@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
     const categoryContext = CATEGORY_CONTEXT[category] || '';
     const partyInfo = PARTY_RESOURCES[partyId];
 
-    // Detailed prompt that asks for comprehensive explanation with quotes
     const prompt = `You are an expert political analyst specializing in Singapore politics. Provide a COMPREHENSIVE, DETAILED explanation for why "${partyName}" would "${stance}" with this policy statement:
 
 "${questionText}"
@@ -169,15 +168,12 @@ Write in a professional, analytical tone. Be thorough and specific. Do not make 
       );
     }
 
-    // Get the explanation text
     const explanation = data.candidates?.[0]?.content?.parts?.[0]?.text || 
       'Unable to generate explanation.';
 
-    // ONLY use grounding sources - these have REAL URLs via vertex redirect
     const groundingMetadata = data.candidates?.[0]?.groundingMetadata;
     const sources: { title: string; url: string; type: string; snippet?: string }[] = [];
     
-    // Extract grounding chunks - these are the ONLY reliable sources
     if (groundingMetadata?.groundingChunks) {
       for (const chunk of groundingMetadata.groundingChunks) {
         if (chunk.web?.uri && chunk.web?.title) {
@@ -206,7 +202,6 @@ Write in a professional, analytical tone. Be thorough and specific. Do not make 
       }
     }
 
-    // Extract grounding support segments if available
     if (groundingMetadata?.groundingSupports) {
       for (const support of groundingMetadata.groundingSupports) {
         if (support.segment?.text && support.groundingChunkIndices) {
@@ -219,7 +214,6 @@ Write in a professional, analytical tone. Be thorough and specific. Do not make 
       }
     }
 
-    // Fallback to party website if no grounding sources
     if (sources.length === 0) {
       const partyWebsite = PARTY_RESOURCES[partyId]?.website;
       if (partyWebsite) {
@@ -231,7 +225,6 @@ Write in a professional, analytical tone. Be thorough and specific. Do not make 
       }
     }
 
-    // Determine confidence based on source quality
     let confidence = 'low';
     const hasOfficialSource = sources.some(s => 
       s.type === 'manifesto' || s.type === 'parliament' || s.type === 'official'

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { getRequestContext } from '@cloudflare/next-on-pages';
 
 // Simple in-memory rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -49,6 +50,23 @@ const CATEGORY_CONTEXT: Record<string, string> = {
   immigration: 'immigration policy, foreign talent, new citizens, population growth'
 };
 
+// Get API key from environment (works for both local and Cloudflare)
+function getApiKey(): string | undefined {
+  // Try Cloudflare Pages context first
+  try {
+    const ctx = getRequestContext();
+    const env = ctx?.env as Record<string, string> | undefined;
+    if (env?.GOOGLE_AI_API_KEY) {
+      return env.GOOGLE_AI_API_KEY;
+    }
+  } catch (e) {
+    // Not in Cloudflare context
+  }
+  
+  // Fall back to process.env (for local dev)
+  return process.env.GOOGLE_AI_API_KEY;
+}
+
 export async function POST(request: NextRequest) {
   // Rate limiting
   const ip = request.headers.get('x-forwarded-for') || 
@@ -63,8 +81,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Get API key from environment
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  // Get API key
+  const apiKey = getApiKey();
   
   if (!apiKey) {
     console.error('GOOGLE_AI_API_KEY not found in environment');
@@ -146,9 +164,18 @@ Write in a professional, analytical tone. Be thorough and specific. Do not make 
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Gemini API error:', response.status, errorText);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'AI service error: ' + response.status })}\n\n`));
+          let errorMessage = `AI service error: ${response.status}`;
+          try {
+            const errorText = await response.text();
+            console.error('Gemini API error:', response.status, errorText);
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.error?.message) {
+              errorMessage = errorJson.error.message;
+            }
+          } catch (e) {
+            // Ignore parsing error
+          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errorMessage })}\n\n`));
           controller.close();
           return;
         }

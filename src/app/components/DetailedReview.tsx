@@ -272,12 +272,13 @@ const DetailedReview: React.FC<DetailedReviewProps> = ({ answers, closestPartyId
       
       if (!response.ok || contentType.includes('application/json')) {
         // Error response - parse as JSON
+        const text = await response.text();
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           throw new Error(errorData.error || 'Failed to fetch explanation');
         } catch (jsonError) {
-          if (jsonError instanceof Error && jsonError.message !== 'Failed to fetch explanation') {
-            const text = await response.text();
+          // If JSON parsing failed, use the raw text
+          if (jsonError instanceof SyntaxError) {
             throw new Error(text || 'Failed to fetch explanation');
           }
           throw jsonError;

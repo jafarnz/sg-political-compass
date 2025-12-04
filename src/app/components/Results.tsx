@@ -165,13 +165,65 @@ const Results: React.FC<ResultsProps> = ({
       const html2canvas = (await import('html2canvas')).default;
       
       const element = resultsRef.current;
-      const canvas = await html2canvas(element, {
+      
+      // Fix for Tailwind v4 oklab colors - convert computed styles to rgb
+      const convertOklabToRgb = (el: Element) => {
+        const computed = window.getComputedStyle(el);
+        const props = ['color', 'background-color', 'border-color', 'border-top-color', 'border-bottom-color', 'border-left-color', 'border-right-color'];
+        
+        props.forEach(prop => {
+          const value = computed.getPropertyValue(prop);
+          if (value && value.includes('oklab')) {
+            // Create a temporary element to compute the rgb value
+            const temp = document.createElement('div');
+            temp.style.color = value;
+            document.body.appendChild(temp);
+            const rgb = window.getComputedStyle(temp).color;
+            document.body.removeChild(temp);
+            (el as HTMLElement).style.setProperty(prop, rgb, 'important');
+          }
+        });
+        
+        // Recursively process children
+        Array.from(el.children).forEach(convertOklabToRgb);
+      };
+      
+      // Clone the element and convert colors
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.style.position = 'absolute';
+      clone.style.left = '-9999px';
+      clone.style.top = '0';
+      clone.style.width = `${element.offsetWidth}px`;
+      document.body.appendChild(clone);
+      
+      // Convert all oklab colors to rgb in the clone
+      convertOklabToRgb(clone);
+      
+      const canvas = await html2canvas(clone, {
         backgroundColor: '#0f172a',
         scale: 2,
         logging: false,
         useCORS: true,
-        allowTaint: true
+        allowTaint: true,
+        onclone: (doc, clonedElement) => {
+          // Additional color conversion on the cloned document
+          const allElements = clonedElement.querySelectorAll('*');
+          allElements.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            const style = window.getComputedStyle(el);
+            
+            // Set explicit colors to avoid oklab parsing
+            if (style.color) htmlEl.style.color = style.color;
+            if (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+              htmlEl.style.backgroundColor = style.backgroundColor;
+            }
+            if (style.borderColor) htmlEl.style.borderColor = style.borderColor;
+          });
+        }
       });
+      
+      // Remove the clone
+      document.body.removeChild(clone);
       
       canvas.toBlob(async (blob) => {
         if (!blob) {
