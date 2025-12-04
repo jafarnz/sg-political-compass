@@ -1,26 +1,36 @@
-import React, { useEffect, useRef } from 'react';
-import { parties, Party, getQuadrantDescription } from '../data/parties';
+'use client';
+
+import React, { useEffect, useRef, useState } from 'react';
+import { parties, Party, getQuadrantName, getQuadrantDescription, calculatePartyDistances, getPartyPosition } from '../data/parties';
+import { AXIS_RANGE } from '../data/axes';
 
 interface PoliticalCompassProps {
-  economicScore: number; // -10 to 10
-  socialScore: number;   // -10 to 10
+  economicScore: number;
+  socialScore: number;
   userPartyScores?: {
     pap: number;
     wp: number;
-    sdp: number;
     psp: number;
+    sdp: number;
   };
   closestPartyId?: string;
+  showLabels?: boolean;
+  interactive?: boolean;
 }
 
 const PoliticalCompass: React.FC<PoliticalCompassProps> = ({ 
   economicScore, 
   socialScore, 
   userPartyScores,
-  closestPartyId 
+  closestPartyId,
+  showLabels = true,
+  interactive = false
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const partyImagesLoaded = useRef<Record<string, HTMLImageElement | null>>({});
+  const [hoveredParty, setHoveredParty] = useState<Party | null>(null);
+  const [canvasSize, setCanvasSize] = useState(800);
   
   // Preload all party logo images
   useEffect(() => {
@@ -28,10 +38,11 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({
       const imagePromises = parties.map(party => {
         return new Promise<[string, HTMLImageElement | null]>((resolve) => {
           const img = new window.Image();
+          img.crossOrigin = 'anonymous';
           img.onload = () => resolve([party.id, img]);
           img.onerror = () => {
             console.warn(`Failed to load image for ${party.name}, using fallback`);
-            resolve([party.id, null]); // Resolve with null to indicate fallback needed
+            resolve([party.id, null]);
           };
           img.src = party.logoPath;
         });
@@ -52,8 +63,7 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({
     
     loadPartyImages();
   }, []);
-  
-  // Function to draw the compass
+
   const drawCompass = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -61,298 +71,454 @@ const PoliticalCompass: React.FC<PoliticalCompassProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    const width = canvas.width;
-    const height = canvas.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const scale = width / 25; // Scale for converting -10..10 to pixel coordinates
+    const size = canvas.width;
+    const padding = 80; // More padding for larger labels
+    const gridSize = size - (padding * 2);
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const scale = gridSize / 20; // -10 to 10 = 20 units
     
     // Clear canvas
-    ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, size, size);
     
-    // Fill background with different colors for each quadrant
-    ctx.globalAlpha = 0.15; // Make backgrounds more subtle
-    // Authoritarian Right (top right)
-    ctx.fillStyle = '#FF9999';
-    ctx.fillRect(centerX, 0, width/2, height/2);
-    // Authoritarian Left (top left)
-    ctx.fillStyle = '#FF99FF';
-    ctx.fillRect(0, 0, width/2, height/2);
-    // Libertarian Left (bottom left)
-    ctx.fillStyle = '#99FF99';
-    ctx.fillRect(0, height/2, width/2, height/2);
-    // Libertarian Right (bottom right)
-    ctx.fillStyle = '#9999FF';
-    ctx.fillRect(centerX, height/2, width/2, height/2);
+    // Draw background
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, size, size);
+    
+    // Draw gradient background for each quadrant
+    ctx.globalAlpha = 0.35;
+    
+    // Authoritarian Right (top right) - Red
+    const gradAR = ctx.createRadialGradient(
+      centerX + gridSize/4, centerY - gridSize/4, 0,
+      centerX + gridSize/4, centerY - gridSize/4, gridSize/2
+    );
+    gradAR.addColorStop(0, 'rgba(239, 68, 68, 0.5)');
+    gradAR.addColorStop(1, 'rgba(239, 68, 68, 0.1)');
+    ctx.fillStyle = gradAR;
+    ctx.fillRect(centerX, padding, gridSize/2, gridSize/2);
+    
+    // Authoritarian Left (top left) - Purple
+    const gradAL = ctx.createRadialGradient(
+      centerX - gridSize/4, centerY - gridSize/4, 0,
+      centerX - gridSize/4, centerY - gridSize/4, gridSize/2
+    );
+    gradAL.addColorStop(0, 'rgba(168, 85, 247, 0.5)');
+    gradAL.addColorStop(1, 'rgba(168, 85, 247, 0.1)');
+    ctx.fillStyle = gradAL;
+    ctx.fillRect(padding, padding, gridSize/2, gridSize/2);
+    
+    // Libertarian Left (bottom left) - Green
+    const gradLL = ctx.createRadialGradient(
+      centerX - gridSize/4, centerY + gridSize/4, 0,
+      centerX - gridSize/4, centerY + gridSize/4, gridSize/2
+    );
+    gradLL.addColorStop(0, 'rgba(34, 197, 94, 0.5)');
+    gradLL.addColorStop(1, 'rgba(34, 197, 94, 0.1)');
+    ctx.fillStyle = gradLL;
+    ctx.fillRect(padding, centerY, gridSize/2, gridSize/2);
+    
+    // Libertarian Right (bottom right) - Blue
+    const gradLR = ctx.createRadialGradient(
+      centerX + gridSize/4, centerY + gridSize/4, 0,
+      centerX + gridSize/4, centerY + gridSize/4, gridSize/2
+    );
+    gradLR.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+    gradLR.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
+    ctx.fillStyle = gradLR;
+    ctx.fillRect(centerX, centerY, gridSize/2, gridSize/2);
+    
     ctx.globalAlpha = 1.0;
     
-    // Draw grid
-    ctx.strokeStyle = '#ddd';
+    // Draw grid lines with numbers
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 1;
+    ctx.font = '12px "Space Grotesk", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
     
-    // Draw vertical grid lines
-    for (let x = -10; x <= 10; x += 2) {
+    // Draw major grid lines every 2 units with labels
+    for (let i = -10; i <= 10; i += 2) {
+      const x = centerX + i * scale;
+      const y = centerY - i * scale;
+      
+      // Vertical lines
       ctx.beginPath();
-      const xPos = centerX + x * scale;
-      ctx.moveTo(xPos, 0);
-      ctx.lineTo(xPos, height);
+      ctx.moveTo(x, padding);
+      ctx.lineTo(x, size - padding);
+      ctx.stroke();
+      
+      // Horizontal lines
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(size - padding, y);
+      ctx.stroke();
+      
+      // X-axis labels (bottom)
+      if (i !== 0) {
+        ctx.textAlign = 'center';
+        ctx.fillText(i.toString(), x, size - padding + 20);
+      }
+      
+      // Y-axis labels (left)
+      if (i !== 0) {
+        ctx.textAlign = 'right';
+        ctx.fillText(i.toString(), padding - 10, centerY - i * scale + 4);
+      }
+    }
+    
+    // Draw minor grid lines every 1 unit (lighter)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    for (let i = -10; i <= 10; i += 1) {
+      if (i % 2 === 0) continue; // Skip major lines
+      const x = centerX + i * scale;
+      const y = centerY - i * scale;
+      
+      ctx.beginPath();
+      ctx.moveTo(x, padding);
+      ctx.lineTo(x, size - padding);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(size - padding, y);
       ctx.stroke();
     }
     
-    // Draw horizontal grid lines
-    for (let y = -10; y <= 10; y += 2) {
-      ctx.beginPath();
-      const yPos = centerY + y * scale;
-      ctx.moveTo(0, yPos);
-      ctx.lineTo(width, yPos);
-      ctx.stroke();
-    }
-    
-    // Draw x and y axes
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
+    // Draw main axes with glow effect
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+    ctx.shadowBlur = 6;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 2.5;
     
     // X-axis
     ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(width, centerY);
+    ctx.moveTo(padding, centerY);
+    ctx.lineTo(size - padding, centerY);
     ctx.stroke();
     
     // Y-axis
     ctx.beginPath();
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, height);
+    ctx.moveTo(centerX, padding);
+    ctx.lineTo(centerX, size - padding);
     ctx.stroke();
     
-    // Add labels
-    ctx.fillStyle = '#000';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
+    ctx.shadowBlur = 0;
     
-    // X-axis labels
-    ctx.fillText('Economic Left', width * 0.25, centerY - 10);
-    ctx.fillText('Economic Right', width * 0.75, centerY - 10);
+    // Draw axis arrows
+    const arrowSize = 12;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     
-    // Y-axis labels
+    // Right arrow
+    ctx.beginPath();
+    ctx.moveTo(size - padding + 5, centerY);
+    ctx.lineTo(size - padding - arrowSize + 5, centerY - arrowSize / 2);
+    ctx.lineTo(size - padding - arrowSize + 5, centerY + arrowSize / 2);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Left arrow
+    ctx.beginPath();
+    ctx.moveTo(padding - 5, centerY);
+    ctx.lineTo(padding + arrowSize - 5, centerY - arrowSize / 2);
+    ctx.lineTo(padding + arrowSize - 5, centerY + arrowSize / 2);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Top arrow
+    ctx.beginPath();
+    ctx.moveTo(centerX, padding - 5);
+    ctx.lineTo(centerX - arrowSize / 2, padding + arrowSize - 5);
+    ctx.lineTo(centerX + arrowSize / 2, padding + arrowSize - 5);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Bottom arrow
+    ctx.beginPath();
+    ctx.moveTo(centerX, size - padding + 5);
+    ctx.lineTo(centerX - arrowSize / 2, size - padding - arrowSize + 5);
+    ctx.lineTo(centerX + arrowSize / 2, size - padding - arrowSize + 5);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Draw "0" at origin
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '12px "Space Grotesk", system-ui, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('Authoritarian', centerX - 10, height * 0.1);
-    ctx.textAlign = 'left';
-    ctx.fillText('Libertarian', centerX + 10, height * 0.9);
+    ctx.fillText('0', centerX - 8, centerY + 15);
     
-    // Draw quadrant labels
-    ctx.font = '14px Arial';
-    ctx.globalAlpha = 0.7;
-    ctx.fillText('Authoritarian Right', width * 0.75, height * 0.25);
-    ctx.textAlign = 'right';
-    ctx.fillText('Authoritarian Left', width * 0.25, height * 0.25);
-    ctx.fillText('Libertarian Left', width * 0.25, height * 0.75);
-    ctx.textAlign = 'left';
-    ctx.fillText('Libertarian Right', width * 0.75, height * 0.75);
-    ctx.globalAlpha = 1.0;
-    
-    // Plot party positions - using direct map from data values to canvas coordinates
-    parties.forEach((party) => {
-      // Convert from political space (-10,10) to pixel coordinates
-      // NOTE: Y-axis flipped because canvas Y increases downward
-      const x = centerX + party.economicPosition * scale;
-      const y = centerY - party.socialPosition * scale; // Negative sign for correct orientation
+    if (showLabels) {
+      // Draw axis labels
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px "Space Grotesk", system-ui, sans-serif';
+      ctx.textAlign = 'center';
       
-      // Highlight closest party with a ring if provided
+      // Economic axis labels
+      ctx.fillText('ECONOMIC LEFT', padding + gridSize * 0.25, centerY + 40);
+      ctx.fillText('ECONOMIC RIGHT', padding + gridSize * 0.75, centerY + 40);
+      
+      // Social axis labels - rotated
+      ctx.save();
+      ctx.translate(centerX + 40, padding + gridSize * 0.25);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText('AUTHORITARIAN', 0, 0);
+      ctx.restore();
+      
+      ctx.save();
+      ctx.translate(centerX + 40, padding + gridSize * 0.75);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText('LIBERTARIAN', 0, 0);
+      ctx.restore();
+      
+      // Quadrant labels with backgrounds
+      ctx.font = '14px "Space Grotesk", system-ui, sans-serif';
+      ctx.globalAlpha = 0.8;
+      
+      // Auth Right
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+      ctx.fillRect(centerX + gridSize * 0.25 - 45, padding + 15, 90, 24);
+      ctx.fillStyle = '#fca5a5';
+      ctx.fillText('Auth Right', centerX + gridSize * 0.25, padding + 32);
+      
+      // Auth Left
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
+      ctx.fillRect(centerX - gridSize * 0.25 - 40, padding + 15, 80, 24);
+      ctx.fillStyle = '#c4b5fd';
+      ctx.fillText('Auth Left', centerX - gridSize * 0.25, padding + 32);
+      
+      // Lib Left
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+      ctx.fillRect(centerX - gridSize * 0.25 - 35, size - padding - 35, 70, 24);
+      ctx.fillStyle = '#86efac';
+      ctx.fillText('Lib Left', centerX - gridSize * 0.25, size - padding - 18);
+      
+      // Lib Right
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+      ctx.fillRect(centerX + gridSize * 0.25 - 40, size - padding - 35, 80, 24);
+      ctx.fillStyle = '#93c5fd';
+      ctx.fillText('Lib Right', centerX + gridSize * 0.25, size - padding - 18);
+      
+      ctx.globalAlpha = 1.0;
+    }
+    
+    // Plot party positions (using calculated positions from question data)
+    parties.forEach((party) => {
+      const partyPos = getPartyPosition(party.id) || { x: 0, y: 0 };
+      const x = centerX + partyPos.x * scale;
+      const y = centerY - partyPos.y * scale;
+      
+      // Draw party glow/ring if closest
       if (closestPartyId && party.id === closestPartyId) {
         ctx.beginPath();
-        ctx.arc(x, y, 18, 0, 2 * Math.PI);
-        ctx.strokeStyle = '#FFD700'; // Gold color
-        ctx.lineWidth = 3;
+        ctx.arc(x, y, 35, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 15;
         ctx.stroke();
+        ctx.shadowBlur = 0;
       }
       
       const partyImage = partyImagesLoaded.current[party.id];
-      const logoSize = 24; // Size of the logo on the canvas
+      const logoSize = 44; // Larger logos
+      
+      // Draw white background circle
+      ctx.beginPath();
+      ctx.arc(x, y, logoSize / 2 + 5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      // Draw colored ring
+      ctx.beginPath();
+      ctx.arc(x, y, logoSize / 2 + 5, 0, 2 * Math.PI);
+      ctx.strokeStyle = party.color;
+      ctx.lineWidth = 4;
+      ctx.stroke();
       
       if (partyImage) {
-        // Draw party logo image
         try {
           ctx.save();
-          // Draw a white background circle for the logo
           ctx.beginPath();
-          ctx.arc(x, y, logoSize/2 + 2, 0, 2 * Math.PI);
-          ctx.fillStyle = 'white';
-          ctx.fill();
-          
-          // Draw the logo
-          ctx.drawImage(
-            partyImage, 
-            x - logoSize/2, 
-            y - logoSize/2, 
-            logoSize, 
-            logoSize
-          );
+          ctx.arc(x, y, logoSize / 2, 0, 2 * Math.PI);
+          ctx.clip();
+          ctx.drawImage(partyImage, x - logoSize / 2, y - logoSize / 2, logoSize, logoSize);
           ctx.restore();
-        } catch (_) {
-          // Fallback to colored circle if image drawing fails
-          drawFallbackPartyMarker(ctx, x, y, party);
+        } catch {
+          drawFallbackPartyMarker(ctx, x, y, party, logoSize);
         }
       } else {
-        // Fallback to colored circle if image not loaded
-        drawFallbackPartyMarker(ctx, x, y, party);
+        drawFallbackPartyMarker(ctx, x, y, party, logoSize);
       }
       
-      // Add party name above the marker
-      ctx.fillStyle = '#000';
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(party.shortName, x, y - logoSize/2 - 5);
+      // Party name label with background
+      if (showLabels) {
+        const labelWidth = ctx.measureText(party.shortName).width + 16;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(x - labelWidth/2, y - logoSize / 2 - 28, labelWidth, 20);
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px "Space Grotesk", system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(party.shortName, x, y - logoSize / 2 - 13);
+      }
     });
     
-    // Draw user position - this is where the user's position is plotted
+    // Draw user position
     if (economicScore !== undefined && socialScore !== undefined) {
       const userX = centerX + economicScore * scale;
-      const userY = centerY - socialScore * scale; // Negative sign for correct orientation
+      const userY = centerY - socialScore * scale;
       
-      // Add a clear white halo around the USER marker
+      // Pulsing glow effect
       ctx.beginPath();
-      ctx.arc(userX, userY, 18, 0, 2 * Math.PI);
-      ctx.fillStyle = 'white';
+      ctx.arc(userX, userY, 35, 0, 2 * Math.PI);
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
       ctx.fill();
       
-      // Draw user marker (larger than party markers)
-      ctx.fillStyle = '#333';
+      // Outer ring
       ctx.beginPath();
-      ctx.arc(userX, userY, 15, 0, 2 * Math.PI);
-      ctx.fill();
+      ctx.arc(userX, userY, 28, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 4;
+      ctx.shadowColor = '#fbbf24';
+      ctx.shadowBlur = 15;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
       
-      // Add "YOU" label
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 12px Arial';
+      // Inner circle
+      ctx.beginPath();
+      ctx.arc(userX, userY, 22, 0, 2 * Math.PI);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      
+      // "YOU" text
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 13px "Space Grotesk", system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('YOU', userX, userY);
-      ctx.textBaseline = 'alphabetic'; // Reset to default
+      ctx.textBaseline = 'alphabetic';
       
-      // Add "YOU" label outside the marker for better visibility
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 14px Arial';
-      ctx.fillText('YOU', userX + 30, userY);
+      // Coordinate display
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillRect(userX - 45, userY + 32, 90, 22);
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '11px "Space Grotesk", system-ui, sans-serif';
+      ctx.fillText(`(${economicScore.toFixed(1)}, ${socialScore.toFixed(1)})`, userX, userY + 46);
     }
     
-    // Add a watermark
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = '#666';
-    ctx.font = 'italic 12px Arial';
+    // Watermark
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'italic 12px "Space Grotesk", system-ui, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('sg-political-compass.vercel.app', width - 10, height - 10);
+    ctx.fillText('SG Political Compass 2025', size - 20, size - 20);
     ctx.globalAlpha = 1.0;
   };
   
-  // Fallback function to draw a colored circle if image loading fails
-  const drawFallbackPartyMarker = (ctx: CanvasRenderingContext2D, x: number, y: number, party: Party) => {
-    ctx.fillStyle = party.color;
+  const drawFallbackPartyMarker = (
+    ctx: CanvasRenderingContext2D, 
+    x: number, 
+    y: number, 
+    party: Party,
+    size: number
+  ) => {
     ctx.beginPath();
-    ctx.arc(x, y, 12, 0, 2 * Math.PI);
+    ctx.arc(x, y, size / 2, 0, 2 * Math.PI);
+    ctx.fillStyle = party.color;
     ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${size / 2.2}px "Space Grotesk", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(party.shortName[0], x, y);
+    ctx.textBaseline = 'alphabetic';
   };
 
   useEffect(() => {
-    // Set canvas dimensions based on container size
-    if (canvasRef.current) {
-      const canvas = canvasRef.current;
-      // Make the canvas a square
-      const size = Math.min(window.innerWidth * 0.8, 600);
-      canvas.width = size;
-      canvas.height = size;
-    }
-    
-    drawCompass();
-    
-    // Redraw on window resize
-    const handleResize = () => {
-      if (canvasRef.current) {
-        const size = Math.min(window.innerWidth * 0.8, 600);
-        canvasRef.current.width = size;
-        canvasRef.current.height = size;
-        drawCompass();
+    const updateSize = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        // Much larger minimum and maximum sizes
+        const newSize = Math.min(Math.max(containerWidth - 32, 500), 900);
+        setCanvasSize(newSize);
       }
     };
     
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [economicScore, socialScore, closestPartyId]);
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
 
-  // Find the quadrant the user is in
-  const userQuadrant = getQuadrantDescription(economicScore, socialScore);
+  useEffect(() => {
+    if (canvasRef.current) {
+      canvasRef.current.width = canvasSize;
+      canvasRef.current.height = canvasSize;
+      drawCompass();
+    }
+  }, [canvasSize, economicScore, socialScore, closestPartyId]);
 
-  // Find closest party based on provided ID or fall back to party scores
-  let closestParty: Party | undefined;
-  if (closestPartyId) {
-    closestParty = parties.find(p => p.id === closestPartyId);
-  } else if (userPartyScores) {
-    const scores = Object.entries(userPartyScores);
-    scores.sort((a, b) => b[1] - a[1]);
-    const closestId = scores[0][0];
-    closestParty = parties.find(p => p.id === closestId);
-  }
+  const userQuadrant = getQuadrantName(economicScore, socialScore);
+  const quadrantDescription = getQuadrantDescription(economicScore, socialScore);
+  const partyDistances = calculatePartyDistances(economicScore, socialScore);
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-6 text-center">Your Political Compass</h2>
+    <div ref={containerRef} className="flex flex-col items-center w-full">
+      <div className="compass-container p-4 md:p-8 rounded-2xl w-full" style={{ maxWidth: '950px' }}>
+        <h2 className="text-2xl md:text-3xl font-bold mb-6 text-center text-white">
+          Your Political Position
+        </h2>
         
-        <canvas 
-          ref={canvasRef} 
-          className="mx-auto border border-gray-300 rounded"
-        />
+        <div className="flex justify-center overflow-x-auto">
+          <canvas 
+            ref={canvasRef} 
+            className="rounded-xl"
+            style={{ 
+              maxWidth: '100%', 
+              height: 'auto',
+              minWidth: '500px'
+            }}
+          />
+        </div>
         
         <div className="mt-8 text-center">
-          <h3 className="text-xl font-semibold mb-2">Your Position</h3>
-          <p className="mb-4">
-            You are in the <strong>{userQuadrant}</strong> quadrant.
-          </p>
-          
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
-              <h4 className="font-medium">Economic: {economicScore.toFixed(1)}</h4>
-              <p className="text-sm">
-                {economicScore < 0 ? "Left-Leaning" : "Right-Leaning"}
-              </p>
-            </div>
-            <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
-              <h4 className="font-medium">Social: {socialScore.toFixed(1)}</h4>
-              <p className="text-sm">
-                {socialScore < 0 ? "Libertarian" : "Authoritarian"}
-              </p>
-            </div>
+          <div className="inline-block px-6 py-3 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30">
+            <span className="text-amber-400 font-semibold text-lg">{userQuadrant}</span>
           </div>
           
-          {closestParty && (
-            <div className="mt-4">
-              <p className="flex items-center justify-center gap-2 mb-2">
-                Your views most closely align with the 
-                <span className="inline-flex items-center">
-                  <span className="w-6 h-6 mr-1 rounded-full flex items-center justify-center overflow-hidden bg-white relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                      src={closestParty.logoPath} 
-                      alt={`${closestParty.name} logo`}
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        // Fallback to colored background with initials
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.parentElement!.style.backgroundColor = closestParty!.color;
-                        target.parentElement!.textContent = closestParty!.shortName[0];
-                      }}
-                    />
-                  </span>
-                  <strong style={{ color: closestParty.color }}>{closestParty.name}</strong>
-                </span>
-              </p>
-              <p className="text-sm mt-2">{closestParty.description}</p>
+          <p className="mt-4 text-slate-300 text-sm max-w-lg mx-auto leading-relaxed">
+            {quadrantDescription}
+          </p>
+          
+          <div className="grid grid-cols-2 gap-4 mt-6 max-w-md mx-auto">
+            <div className="score-card p-4 rounded-xl">
+              <div className="text-xs uppercase tracking-wider text-slate-400 mb-1">Economic</div>
+              <div className={`text-3xl font-bold ${economicScore < 0 ? 'text-green-400' : 'text-blue-400'}`}>
+                {economicScore > 0 ? '+' : ''}{economicScore.toFixed(1)}
+              </div>
+              <div className="text-sm text-slate-400">
+                {economicScore < -3 ? 'Left' : economicScore < 0 ? 'Center-Left' : economicScore < 3 ? 'Center-Right' : 'Right'}
+              </div>
             </div>
-          )}
+            <div className="score-card p-4 rounded-xl">
+              <div className="text-xs uppercase tracking-wider text-slate-400 mb-1">Social</div>
+              <div className={`text-3xl font-bold ${socialScore < 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {socialScore > 0 ? '+' : ''}{socialScore.toFixed(1)}
+              </div>
+              <div className="text-sm text-slate-400">
+                {socialScore < -3 ? 'Libertarian' : socialScore < 0 ? 'Lean Libertarian' : socialScore < 3 ? 'Lean Authoritarian' : 'Authoritarian'}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default PoliticalCompass; 
+export default PoliticalCompass;

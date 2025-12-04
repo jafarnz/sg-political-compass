@@ -1,570 +1,534 @@
+import { AXIS_RANGE, SCORE_MULTIPLIER } from './axes';
+
+export type QuestionCategory = 
+  | 'taxation'
+  | 'housing'
+  | 'healthcare'
+  | 'employment'
+  | 'welfare'
+  | 'governance'
+  | 'civil_liberties'
+  | 'immigration';
+
 export interface Question {
   id: number;
   text: string;
-  category: 'economic' | 'social';
-  scoringPAP: number;
-  scoringWP: number;
-  scoringPSP: number;
-  scoringSDP: number;
-  isInverted?: boolean; // If true, agree = negative, disagree = positive
+  category: QuestionCategory;
+  axis: 'economic' | 'social';
+  weight: number; // 1-3, importance of question
+  // Party alignment scores: positive = party agrees, negative = party disagrees
+  partyScores: {
+    pap: number;
+    wp: number;
+    psp: number;
+    sdp: number;
+  };
 }
 
-// 25 economic and 25 social questions
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+/**
+ * Infer the ideological direction of a question from how PAP vs the
+ * opposition answer it:
+ *
+ * - If PAP supports the statement more than the opposition (on average),
+ *   then "Agree" points in the + direction on that axis.
+ * - If the opposition supports it more, then "Agree" points in the - direction.
+ *
+ * For economic axis:
+ *   +1 ≈ more economically right (free market, low taxes)
+ *   -1 ≈ more economically left (redistribution, welfare)
+ *
+ * For social axis:
+ *   +1 ≈ more authoritarian (state control, traditional values)
+ *   -1 ≈ more libertarian (civil liberties, personal freedom)
+ *
+ * This ensures both users AND parties are placed using the same transformation.
+ */
+export const getAxisDirection = (question: Question): -1 | 0 | 1 => {
+  const governmentSupport = question.partyScores.pap;
+  const oppositionSupport = (question.partyScores.wp + question.partyScores.psp + question.partyScores.sdp) / 3;
+  const difference = governmentSupport - oppositionSupport;
+  if (Math.abs(difference) < 0.1) return 0; // no clear lean
+  return difference > 0 ? 1 : -1;
+};
+
+export const categoryLabels: Record<QuestionCategory, string> = {
+  taxation: '💰 Taxation & Fiscal Policy',
+  housing: '🏠 Housing',
+  healthcare: '🏥 Healthcare',
+  employment: '👷 Employment & Wages',
+  welfare: '🤝 Social Welfare',
+  governance: '🏛️ Governance & Transparency',
+  civil_liberties: '⚖️ Civil Liberties',
+  immigration: '🌏 Immigration & Population'
+};
+
+// 40 questions based on actual 2025 manifesto positions
 export const questions: Question[] = [
-  // Economic Questions (1-25)
+  // ===== TAXATION & FISCAL POLICY (5 questions) =====
   {
     id: 1,
-    text: "The wealthy should pay higher taxes so government can fund social welfare programs.",
-    category: 'economic',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
+    text: "The GST should be reduced from 9% back to 7%, with essential items like food and medicine exempted.",
+    category: 'taxation',
+    axis: 'economic',
+    weight: 3,
+    partyScores: { pap: -2, wp: 2, psp: 2, sdp: 2 }
   },
   {
     id: 2,
-    text: "Raising corporate tax to at least 15% will help share prosperity more fairly.",
-    category: 'economic',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 1,
-    scoringPSP: 2,
-    isInverted: true
+    text: "Singapore should maintain large national reserves for future generations rather than spending more now.",
+    category: 'taxation',
+    axis: 'economic',
+    weight: 3,
+    partyScores: { pap: 2, wp: -1, psp: -1, sdp: -2 }
   },
   {
     id: 3,
-    text: "Goods and Services Tax (GST) on basic essentials should be cut or exempted.",
-    category: 'economic',
-    scoringPAP: -1,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
+    text: "The wealthy and top earners should pay significantly higher taxes to fund social programs.",
+    category: 'taxation',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: -1, wp: 1, psp: 2, sdp: 2 }
   },
   {
     id: 4,
-    text: "Government should keep a balanced budget and build reserves instead of running deficits.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "The government should use more of the Net Investment Returns Contribution (NIRC) from reserves to fund current spending.",
+    category: 'taxation',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: -1, wp: 2, psp: 1, sdp: 2 }
   },
   {
     id: 5,
-    text: "We should use national reserves freely now (e.g. through Net Investment Returns) to fund social programs.",
-    category: 'economic',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "Corporate taxes should remain competitive to attract multinational companies, even if it means less tax revenue.",
+    category: 'taxation',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: -1, psp: -1, sdp: -2 }
   },
+
+  // ===== HOUSING (5 questions) =====
   {
     id: 6,
-    text: "Government subsidies and cash transfers are better than giving one-time handouts.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -1,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "HDB flat prices should exclude land cost, making public housing truly affordable for all Singaporeans.",
+    category: 'housing',
+    axis: 'economic',
+    weight: 3,
+    partyScores: { pap: -2, wp: 1, psp: 2, sdp: 2 }
   },
   {
     id: 7,
-    text: "All full-time workers should have a legally mandated minimum wage.",
-    category: 'economic',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
+    text: "Building more HDB flats quickly is the best solution to housing affordability, rather than changing pricing models.",
+    category: 'housing',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: 0, psp: -1, sdp: -1 }
   },
   {
     id: 8,
-    text: "Singapore should not have a national minimum wage law.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -2
+    text: "The government should introduce non-open market housing options with shorter leases (e.g., 50-60 years) at lower prices.",
+    category: 'housing',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: -1, wp: 2, psp: 1, sdp: 2 }
   },
   {
     id: 9,
-    text: "The Progressive Wage Credit Scheme (co-funding wage increases) is more effective than a flat minimum wage law.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -1,
-    scoringSDP: -1,
-    scoringPSP: -1
+    text: "It is acceptable that HDB flats lose value over time (lease decay) as part of the 99-year lease system.",
+    category: 'housing',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 1, wp: -2, psp: -2, sdp: -2 }
   },
   {
     id: 10,
-    text: "Employers should be required to demonstrate skills transfer to Singaporean employees before hiring foreign workers.",
-    category: 'economic',
-    scoringPAP: -1,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
+    text: "The government should cap resale HDB prices to keep housing affordable for future generations.",
+    category: 'housing',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: -2, wp: 1, psp: 2, sdp: 2 }
   },
+
+  // ===== HEALTHCARE (5 questions) =====
   {
     id: 11,
-    text: "Foreign professionals who meet skills needs should be able to work in Singapore easily.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -2
+    text: "Singapore should implement a universal national healthcare system funded by taxes, reducing out-of-pocket costs.",
+    category: 'healthcare',
+    axis: 'economic',
+    weight: 3,
+    partyScores: { pap: -2, wp: 1, psp: 1, sdp: 2 }
   },
   {
     id: 12,
-    text: "Building more HDB flats quickly is the best way to keep housing affordable.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: 1,
-    scoringSDP: -1,
-    scoringPSP: -1
+    text: "The current Medisave/Medishield system of personal healthcare savings is better than a tax-funded universal system.",
+    category: 'healthcare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: -1, psp: -1, sdp: -2 }
   },
   {
     id: 13,
-    text: "HDB owners should not have to pay for the land cost of their flats.",
-    category: 'economic',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
+    text: "The government should centralize drug procurement to negotiate lower prices for all public hospitals.",
+    category: 'healthcare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 0, wp: 1, psp: 2, sdp: 2 }
   },
   {
     id: 14,
-    text: "Government should stabilize housing prices, even if it means capping resale prices.",
-    category: 'economic',
-    scoringPAP: -1,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
+    text: "Healthcare costs should primarily be borne by individuals through their CPF Medisave, not general taxation.",
+    category: 'healthcare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: -1, psp: -1, sdp: -2 }
   },
   {
     id: 15,
-    text: "It's acceptable that older flats lose value (lease decay) because Singaporeans can downsize or use savings.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -2
+    text: "The government should expand healthcare subsidies significantly, especially for the elderly and lower-income groups.",
+    category: 'healthcare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 1, wp: 2, psp: 2, sdp: 2 }
   },
+
+  // ===== EMPLOYMENT & WAGES (5 questions) =====
   {
     id: 16,
-    text: "Healthcare costs should be paid by personal Medisave, not covered by general taxation.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -1,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "Singapore should implement a national minimum wage law for all workers.",
+    category: 'employment',
+    axis: 'economic',
+    weight: 3,
+    partyScores: { pap: -2, wp: 1, psp: 2, sdp: 2 }
   },
   {
     id: 17,
-    text: "The government should guarantee a basic level of healthcare for all citizens from taxes.",
-    category: 'economic',
-    scoringPAP: -1,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "The Progressive Wage Model (sector-specific wage floors with skills progression) is better than a blanket minimum wage.",
+    category: 'employment',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: 0, psp: -1, sdp: -1 }
   },
   {
     id: 18,
-    text: "Government can invest more (e.g. through Temasek/GIC) to fund public healthcare and social schemes.",
-    category: 'economic',
-    scoringPAP: 1,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "The government should implement redundancy insurance to help workers who are retrenched.",
+    category: 'employment',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 0, wp: 2, psp: 1, sdp: 2 }
   },
   {
     id: 19,
-    text: "Our economy should rely more on small and medium enterprises (SMEs) rather than multinational corporations (MNCs).",
-    category: 'economic',
-    scoringPAP: -1,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "Employers should be required to demonstrate that no qualified Singaporean is available before hiring foreign professionals.",
+    category: 'employment',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: -1, wp: 2, psp: 2, sdp: 1 }
   },
   {
     id: 20,
-    text: "Singapore should not grow its foreign reserves further; instead the government should spend to help citizens now.",
-    category: 'economic',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "Singapore should prioritize attracting global talent and foreign professionals for economic competitiveness.",
+    category: 'employment',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: -1, psp: -2, sdp: -1 }
   },
+
+  // ===== SOCIAL WELFARE (5 questions) =====
   {
     id: 21,
-    text: "Tax cuts for middle-income families are more important than expanded welfare.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -1,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "Welfare benefits should be conditional on active job-seeking or participation in training programs.",
+    category: 'welfare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: 0, psp: 0, sdp: -1 }
   },
   {
     id: 22,
-    text: "My family would benefit more from cash vouchers (handouts) than paying more into CPF/Medisave.",
-    category: 'economic',
-    scoringPAP: -1,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "The government should provide universal cash transfers to all citizens rather than targeted subsidies.",
+    category: 'welfare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: -2, wp: 1, psp: 1, sdp: 2 }
   },
   {
     id: 23,
-    text: "Employers should get more tax rebates for investing in technology and skills for workers.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: 1,
-    scoringSDP: -1,
-    scoringPSP: 1
+    text: "CPF should primarily remain a personal savings scheme rather than being used for broader social security.",
+    category: 'welfare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: -1, psp: -1, sdp: -2 }
   },
   {
     id: 24,
-    text: "Central Provident Fund (CPF) should remain a personal savings account, not be used for broad social support.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -1,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "Government vouchers and targeted rebates are more effective than broad-based welfare programs.",
+    category: 'welfare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: 2, wp: -1, psp: -1, sdp: -2 }
   },
   {
     id: 25,
-    text: "Government welfare should be conditional on active job-seeking or retraining.",
-    category: 'economic',
-    scoringPAP: 2,
-    scoringWP: -1,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "The elderly should receive a basic income from the government regardless of their means.",
+    category: 'welfare',
+    axis: 'economic',
+    weight: 2,
+    partyScores: { pap: -1, wp: 1, psp: 1, sdp: 2 }
   },
 
-  // Social Questions (26-50)
+  // ===== GOVERNANCE & TRANSPARENCY (5 questions) =====
   {
     id: 26,
-    text: "Same-sex couples should have the right to marry and adopt children.",
-    category: 'social',
-    scoringPAP: -2,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "All ministers and MPs should be required to publicly declare their personal assets and business interests.",
+    category: 'governance',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: -1, wp: 2, psp: 2, sdp: 2 }
   },
   {
     id: 27,
-    text: "It is not a government's role to prevent discrimination against LGBTQ individuals.",
-    category: 'social',
-    scoringPAP: 1,
-    scoringWP: -1,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "Parliament should have more power to scrutinize government budgets and spending decisions.",
+    category: 'governance',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: -1, wp: 2, psp: 2, sdp: 2 }
   },
   {
     id: 28,
-    text: "Immigration levels should be kept low to protect local culture and jobs.",
-    category: 'social',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2
+    text: "The current system where experienced ministers hold power for long periods ensures stability and good governance.",
+    category: 'governance',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: 2, wp: -1, psp: -1, sdp: -2 }
   },
   {
     id: 29,
-    text: "Singapore should welcome as many qualified immigrants as needed for economic growth.",
-    category: 'social',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -2,
-    isInverted: true
+    text: "The Elected President should have more independent power over budgets and national reserves.",
+    category: 'governance',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: -1, wp: 1, psp: 2, sdp: 2 }
   },
   {
     id: 30,
-    text: "The Ethnic Integration Policy (HDB quotas) should be scrapped so sellers can freely price their flats.",
-    category: 'social',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "GRCs (Group Representation Constituencies) should be abolished in favor of single-member constituencies.",
+    category: 'governance',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: -2, wp: 1, psp: 2, sdp: 2 }
   },
+
+  // ===== CIVIL LIBERTIES (5 questions) =====
   {
     id: 31,
-    text: "The government should require tight racial/ethnic ratios in each HDB block.",
-    category: 'social',
-    scoringPAP: 2,
-    scoringWP: -1,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "The media and press should have more freedom to criticize the government without fear of legal action.",
+    category: 'civil_liberties',
+    axis: 'social',
+    weight: 3,
+    partyScores: { pap: -2, wp: 1, psp: 2, sdp: 2 }
   },
   {
     id: 32,
-    text: "Our media and press should be free to criticize the government without fear of reprisal.",
-    category: 'social',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
+    text: "Online content should be regulated by the government to prevent misinformation and maintain social harmony.",
+    category: 'civil_liberties',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: 2, wp: 0, psp: -1, sdp: -2 }
   },
   {
     id: 33,
-    text: "Content on the internet should be regulated by the government to maintain social harmony.",
-    category: 'social',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -2
+    text: "Singaporeans should be allowed to hold peaceful public protests and assemblies without requiring police permits.",
+    category: 'civil_liberties',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: -2, wp: 1, psp: 1, sdp: 2 }
   },
   {
     id: 34,
-    text: "People should be allowed to hold political rallies even if their views are unpopular.",
-    category: 'social',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
+    text: "The government should protect traditional family values even if it means limiting certain personal freedoms.",
+    category: 'civil_liberties',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: 2, wp: 0, psp: 0, sdp: -2 }
   },
   {
     id: 35,
-    text: "Schools should adjust or remove streaming/exams (like PSLE) to reduce stress on children.",
-    category: 'social',
-    scoringPAP: -2,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "Laws that restrict speech and assembly are necessary to maintain Singapore's social stability and racial harmony.",
+    category: 'civil_liberties',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: 2, wp: 0, psp: -1, sdp: -2 }
   },
+
+  // ===== IMMIGRATION & POPULATION (5 questions) =====
   {
     id: 36,
-    text: "Preschool and primary education should be fully free for all families.",
-    category: 'social',
-    scoringPAP: -1,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "Immigration levels should be significantly reduced to protect jobs and opportunities for Singaporeans.",
+    category: 'immigration',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: -2, wp: 1, psp: 2, sdp: 1 }
   },
   {
     id: 37,
-    text: "University education should be tuition-free (with loans or bonds for graduates).",
-    category: 'social',
-    scoringPAP: -1,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "New citizens should be required to reside in Singapore for a longer period (e.g., 10+ years) before gaining full citizenship rights.",
+    category: 'immigration',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: -1, wp: 1, psp: 2, sdp: 1 }
   },
   {
     id: 38,
-    text: "Religious institutions should have influence over public policy in Singapore.",
-    category: 'social',
-    scoringPAP: 1,
-    scoringWP: -1,
-    scoringSDP: -2,
-    scoringPSP: -1
+    text: "Singapore needs continued immigration to sustain economic growth and address the aging population.",
+    category: 'immigration',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: 2, wp: -1, psp: -2, sdp: -1 }
   },
   {
     id: 39,
-    text: "Government must protect traditional values even if it limits personal freedoms.",
-    category: 'social',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -2
+    text: "The Ethnic Integration Policy (HDB quotas) is still necessary to prevent racial enclaves and maintain social cohesion.",
+    category: 'immigration',
+    axis: 'social',
+    weight: 2,
+    partyScores: { pap: 2, wp: 1, psp: 0, sdp: -1 }
   },
   {
     id: 40,
-    text: "Our national identity is strengthened by integrating all cultures, not by emphasizing differences.",
-    category: 'social',
-    scoringPAP: 1,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
-  },
-  {
-    id: 41,
-    text: "Censorship of movies or books is sometimes necessary to protect society.",
-    category: 'social',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -2
-  },
-  {
-    id: 42,
-    text: "Politicians and public servants should be required to declare their assets for transparency.",
-    category: 'social',
-    scoringPAP: -1,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
-  },
-  {
-    id: 43,
-    text: "Students should spend more time on vocational skills and less on academic theory.",
-    category: 'social',
-    scoringPAP: 1,
-    scoringWP: 2,
-    scoringSDP: -1,
-    scoringPSP: 2
-  },
-  {
-    id: 44,
-    text: "Higher education admissions should give priority to lower-income or disadvantaged students.",
-    category: 'social',
-    scoringPAP: -2,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
-  },
-  {
-    id: 45,
-    text: "The voting age should be lowered to 18 since many 18-year-olds already serve in the military.",
-    category: 'social',
-    scoringPAP: -2,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 2,
-    isInverted: true
-  },
-  {
-    id: 46,
-    text: "All Singaporeans who complete National Service should have guaranteed public housing priority.",
-    category: 'social',
-    scoringPAP: 1,
-    scoringWP: 2,
-    scoringSDP: 1,
-    scoringPSP: 1
-  },
-  {
-    id: 47,
-    text: "The government should increase the allowances of full-time national servicemen (NSFs).",
-    category: 'social',
-    scoringPAP: -1,
-    scoringWP: 2,
-    scoringSDP: 1,
-    scoringPSP: 1,
-    isInverted: true
-  },
-  {
-    id: 48,
-    text: "Segregation by race or religion (e.g. in schools or communities) should be actively prevented.",
-    category: 'social',
-    scoringPAP: 1,
-    scoringWP: 2,
-    scoringSDP: 2,
-    scoringPSP: 2
-  },
-  {
-    id: 49,
-    text: "Veteran ministers and MPs should continue to hold power to ensure stability.",
-    category: 'social',
-    scoringPAP: 2,
-    scoringWP: -2,
-    scoringSDP: -2,
-    scoringPSP: -2
-  },
-  {
-    id: 50,
-    text: "The President should have more independent power over budgets and reserves.",
-    category: 'social',
-    scoringPAP: -1,
-    scoringWP: 1,
-    scoringSDP: 2,
-    scoringPSP: 1,
-    isInverted: true
+    text: "Foreign workers should have stronger employment protections and pathways to permanent residency.",
+    category: 'immigration',
+    axis: 'social',
+    weight: 1,
+    partyScores: { pap: 0, wp: 1, psp: -1, sdp: 2 }
   }
 ];
 
 export type Answer = -2 | -1 | 0 | 1 | 2;
 
-export interface QuizState {
-  answers: Record<number, Answer>;
-  currentQuestionIndex: number;
+export const answerLabels: Record<Answer, string> = {
+  2: 'Strongly Agree',
+  1: 'Agree',
+  0: 'Neutral',
+  [-1]: 'Disagree',
+  [-2]: 'Strongly Disagree'
+};
+
+export interface QuizResults {
   economicScore: number;
   socialScore: number;
   scoresByParty: {
     pap: number;
     wp: number;
-    sdp: number;
     psp: number;
+    sdp: number;
   };
-  completed: boolean;
+  scoresByCategory: Record<QuestionCategory, { economic: number; social: number }>;
+  answers: Record<number, Answer>; // User's raw answers for comparison
 }
 
-export const calculateScores = (answers: Record<number, Answer>): {
-  economicScore: number;
-  socialScore: number;
-  scoresByParty: { pap: number; wp: number; sdp: number; psp: number };
-} => {
-  let currentEconomicScore = 0;
-  let currentSocialScore = 0;
+export interface QuizState {
+  answers: Record<number, Answer>;
+  currentQuestionIndex: number;
+  completed: boolean;
+  finalResults: QuizResults | null;
+}
+
+export const calculateScores = (answers: Record<number, Answer>): QuizResults => {
+  let economicRawScore = 0;
+  let socialRawScore = 0;
+  let economicMaxScore = 0;
+  let socialMaxScore = 0;
+  
   let papScore = 0;
   let wpScore = 0;
-  let sdpScore = 0;
   let pspScore = 0;
+  let sdpScore = 0;
   
-  let economicQuestionsAnswered = 0;
-  let socialQuestionsAnswered = 0;
+  const categoryScores: Record<QuestionCategory, { economic: number; social: number; count: number }> = {
+    taxation: { economic: 0, social: 0, count: 0 },
+    housing: { economic: 0, social: 0, count: 0 },
+    healthcare: { economic: 0, social: 0, count: 0 },
+    employment: { economic: 0, social: 0, count: 0 },
+    welfare: { economic: 0, social: 0, count: 0 },
+    governance: { economic: 0, social: 0, count: 0 },
+    civil_liberties: { economic: 0, social: 0, count: 0 },
+    immigration: { economic: 0, social: 0, count: 0 }
+  };
 
-  Object.entries(answers).forEach(([questionIdStr, rawAnswer]) => {
+  Object.entries(answers).forEach(([questionIdStr, userAnswer]) => {
     const questionId = parseInt(questionIdStr, 10);
     const question = questions.find(q => q.id === questionId);
     
-    if (!question) return;
+    if (!question || userAnswer === 0) return;
     
-    const multiplier = question.isInverted ? -1 : 1;
-    const axisSpecificUserAnswerValue = rawAnswer * multiplier;
+    const axisDirection = getAxisDirection(question);
+    const maxPossible = 2 * question.weight;
     
-    if (question.category === 'economic') {
-      currentEconomicScore += axisSpecificUserAnswerValue;
-      economicQuestionsAnswered++;
-    } else {
-      currentSocialScore += axisSpecificUserAnswerValue;
-      socialQuestionsAnswered++;
+    if (axisDirection !== 0) {
+      const weightedAnswer = userAnswer * axisDirection * question.weight;
+      if (question.axis === 'economic') {
+        economicRawScore += weightedAnswer;
+        economicMaxScore += maxPossible;
+        categoryScores[question.category].economic += userAnswer * axisDirection;
+      } else {
+        socialRawScore += weightedAnswer;
+        socialMaxScore += maxPossible;
+        categoryScores[question.category].social += userAnswer * axisDirection;
+      }
     }
     
-    papScore += rawAnswer * question.scoringPAP;
-    wpScore += rawAnswer * question.scoringWP;
-    sdpScore += rawAnswer * question.scoringSDP;
-    pspScore += rawAnswer * question.scoringPSP;
+    categoryScores[question.category].count++;
+    
+    // Calculate party alignment scores
+    papScore += userAnswer * question.partyScores.pap * question.weight;
+    wpScore += userAnswer * question.partyScores.wp * question.weight;
+    pspScore += userAnswer * question.partyScores.psp * question.weight;
+    sdpScore += userAnswer * question.partyScores.sdp * question.weight;
   });
   
-  const maxPossibleEconomicScore = economicQuestionsAnswered * 2;
-  const maxPossibleSocialScore = socialQuestionsAnswered * 2;
+  const normalizedEconomic = economicMaxScore > 0 
+    ? economicRawScore / economicMaxScore 
+    : 0;
+  const normalizedSocial = socialMaxScore > 0 
+    ? socialRawScore / socialMaxScore 
+    : 0;
   
-  const finalEconomicScore = maxPossibleEconomicScore > 0 
-    ? (currentEconomicScore / maxPossibleEconomicScore) * 10 
-    : 0;
-  const finalSocialScore = maxPossibleSocialScore > 0 
-    ? (currentSocialScore / maxPossibleSocialScore) * 10 
-    : 0;
+  const economicScore = clamp(normalizedEconomic * AXIS_RANGE * SCORE_MULTIPLIER, -AXIS_RANGE, AXIS_RANGE);
+  const socialScore = clamp(normalizedSocial * AXIS_RANGE * SCORE_MULTIPLIER, -AXIS_RANGE, AXIS_RANGE);
+  
+  // Normalize category scores
+  const normalizedCategoryScores = Object.fromEntries(
+    Object.entries(categoryScores).map(([cat, scores]) => [
+      cat,
+      {
+        economic: scores.count > 0 ? scores.economic / scores.count : 0,
+        social: scores.count > 0 ? scores.social / scores.count : 0
+      }
+    ])
+  ) as Record<QuestionCategory, { economic: number; social: number }>;
   
   return {
-    economicScore: finalEconomicScore,
-    socialScore: finalSocialScore,
+    economicScore,
+    socialScore,
     scoresByParty: {
       pap: papScore,
       wp: wpScore,
-      sdp: sdpScore,
-      psp: pspScore
-    }
+      psp: pspScore,
+      sdp: sdpScore
+    },
+    scoresByCategory: normalizedCategoryScores,
+    answers
   };
-}; 
+};
+
+export const getQuestionsByCategory = (category: QuestionCategory): Question[] => {
+  return questions.filter(q => q.category === category);
+};
+
+export const getQuestionsGroupedByCategory = (): Record<QuestionCategory, Question[]> => {
+  return questions.reduce((acc, q) => {
+    if (!acc[q.category]) acc[q.category] = [];
+    acc[q.category].push(q);
+    return acc;
+  }, {} as Record<QuestionCategory, Question[]>);
+};

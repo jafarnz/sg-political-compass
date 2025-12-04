@@ -6,7 +6,11 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:cloudflare": "CLOUDFLARE=true npx @cloudflare/next-on-pages",
+    "preview:cloudflare": "npm run build:cloudflare && npx wrangler pages dev .vercel/output/static",
+    "deploy": "npm run build:cloudflare && npx wrangler pages deploy .vercel/output/static",
+    "deploy:prod": "npm run build:cloudflare && npx wrangler pages deploy .vercel/output/static --project-name=sg-political-compass"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",
@@ -15,6 +19,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -23,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^3.0.0"
   }
 }
